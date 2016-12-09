@@ -1,4 +1,5 @@
-load("@org_pubref_rules_require//require:rules.bzl", "require")
+load("//maven:internal/require.bzl", "require")
+load("//maven:internal/require_toolchain.bzl", "require_toolchain")
 
 GRADLE_VERSION = "3.2.1"
 
@@ -25,6 +26,9 @@ DEPS = {
 }
 
 def maven_repositories(deps = DEPS, overrides = {}, excludes = [], verbose = 0):
+    # Setup the toolchain repository that we always know the external name of
+    # the require script.
+    require_toolchain(name = "org_pubref_require_toolchain");
     require([
         "gradle_distribution",
     ], deps, overrides, excludes, verbose)

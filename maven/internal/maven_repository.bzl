@@ -1,3 +1,5 @@
+load("//maven:internal/require_toolchain.bzl", "require_toolchain")
+
 _BUILD_GRADLE = """
 apply plugin: 'java'
 repositories {
@@ -56,7 +58,7 @@ def _format_rules_file(configs):
 
     lines = []
     lines.append("# AUTO_GENERATED, DO NOT EDIT")
-    lines.append("load('@org_pubref_rules_require//require:rules.bzl', 'require')")
+    lines.append("load('@org_pubref_require_toolchain//:require.bzl', 'require')")
     lines.append("DEPS = {")
     for artifact in all_artifacts:
         lines += _format_maven_jar(artifact)
@@ -91,31 +93,31 @@ def _format_workspace_name(artifact):
     parts = artifact.split(":")
     return "%s_%s" % (_flatten(parts[0]), _flatten(parts[1]));
 
-def _execute(ctx, cmds):
-    result = ctx.execute(cmds)
+def _execute(rtx, cmds):
+    result = rtx.execute(cmds)
     if result.return_code:
         fail(" ".join(cmds) + "failed: %s" %(result.stderr))
     return result
 
-def _maven_dependencies_impl(ctx):
-    java = ctx.which("java")
-    launcher_jar = ctx.path(ctx.attr._gradle_launcher_jar)
+def _maven_repository_impl(rtx):
+    java = rtx.which("java")
+    launcher_jar = rtx.path(rtx.attr._gradle_launcher_jar)
 
-    gdeps = ["compile('%s')" % a for a in ctx.attr.artifacts]
-    ctx.file("build.gradle", _BUILD_GRADLE % "\n".join(gdeps));
+    gdeps = ["compile('%s')" % a for a in rtx.attr.artifacts]
+    rtx.file("build.gradle", _BUILD_GRADLE % "\n".join(gdeps));
 
     args = [
         java, '-jar', launcher_jar, 'dependencies',
     ]
-    result = _execute(ctx, args);
+    result = _execute(rtx, args);
 
-    print("result: %s" % result.stdout)
-    configs = _parse_configuration(ctx.attr.configurations, result.stdout)
-    ctx.file("BUILD", _format_build_file(configs));
-    ctx.file("rules.bzl", _format_rules_file(configs));
+    #print("result: %s" % result.stdout)
+    configs = _parse_configuration(rtx.attr.configurations, result.stdout)
+    rtx.file("BUILD", _format_build_file(configs));
+    rtx.file("rules.bzl", _format_rules_file(configs));
 
-maven_dependencies = repository_rule(
-    implementation = _maven_dependencies_impl,
+maven_repository = repository_rule(
+    implementation = _maven_repository_impl,
     attrs = {
         "artifacts": attr.string_list(
             mandatory = True,
@@ -131,10 +133,8 @@ maven_dependencies = repository_rule(
             cfg = "host",
         ),
         "configurations": attr.string_list(
-            mandatory = True,
             default = ["compile", "default", "runtime",
                        "compileOnly", "compileClasspath"],
-            }
         ),
     }
 )

@@ -18,20 +18,9 @@
 
 ## Usage
 
-### 1. Add rules_require and rules_maven to your WORKSPACE
-
-This repository depends on [rules_require](https://github.com/pubref/rules_require).
+### 1. Add rules_maven to your WORKSPACE
 
 ```python
-git_repository(
-  name = "org_pubref_rules_require",
-  remote = "https://github.com/pubref/rules_require",
-  commit = HEAD, # replace with latest version
-)
-
-load("@org_pubref_rules_require//require:rules.bzl", "require_repositories")
-require_repositories()
-
 git_repository(
   name = "org_pubref_rules_maven",
   remote = "https://github.com/pubref/rules_maven",
@@ -108,15 +97,6 @@ To further illustrate steps 1-3 are all in the same file.
 
 ```python
 git_repository(
-  name = "org_pubref_rules_require",
-  remote = "https://github.com/pubref/rules_require",
-  commit = HEAD, # replace with latest version
-)
-load("@org_pubref_rules_require//require:rules.bzl", "require_repositories")
-require_repositories()
-
-
-git_repository(
   name = "org_pubref_rules_maven",
   remote = "https://github.com/pubref/rules_maven",
   commit = HEAD, # replace with latest version
@@ -124,7 +104,6 @@ git_repository(
 
 load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories")
 maven_repositories()
-
 
 maven_repository(
     name = "jetty",
