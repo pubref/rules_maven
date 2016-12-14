@@ -7,6 +7,7 @@
 <td>Rules</td>
 <td>Maven</td>
 </tr></table>
+
 [Bazel](https://bazel.build) rules for working with transitive maven dependencies.
 
 ## Rules
@@ -15,6 +16,8 @@
 | -------------------: | :----------- |
 | [maven_repositories](#maven_repositories) |  Load dependencies for this repo. |
 | [maven_repository](#maven_repository) | Declare an external workspace that defines transitive dependencies for a set of maven artifacts. |
+
+**Status**: experimental, but actively in use for other internal projects.
 
 ## Usage
 
@@ -31,51 +34,93 @@ load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories")
 maven_repositories()
 ```
 
-### 2. Define a maven_repository for a transitive set of maven artifacts in your WORKSPACE.
+### 2a. Define an initial maven_repository rule naming the root artifact(s)
 
 ```python
+load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repository")
+
 maven_repository(
-    name = "jetty",
-    artifacts = [
-        "org.eclipse.jetty:jetty-server:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-server:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-jmx:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-plus:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-jndi:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-webapp:9.3.10.v20160621",
-        "org.eclipse.jetty.websocket:websocket-servlet:9.3.10.v20160621",
-        "org.eclipse.jetty.websocket:javax-websocket-client-impl:9.3.10.v20160621",
-        "org.eclipse.jetty.websocket:javax-websocket-server-impl:9.3.10.v20160621",
-    ],
+  name = "guice",
+  deps = [
+    'com.google.inject:guice:4.1.0',
+  ],
 )
 ```
 
-Given this repository rule defintion, `rules_maven` will create a
-`build.gradle` file, call `gradle dependencies`, parse the output of
-this and translate it to a flattened set of `maven_jar` rules.
+Given this initial repository rule defintion, `rules_maven` will:
 
-Two files are written in `($bazel info output_base)/external/jetty`:
+1. write a `build.gradle` file,
 
-1. `rules.bzl`: this file contains require definitions over the
-   transitive closure of the maven jar dependency tree.  A separate
-   macro is defined foreach gradle configuration (default: `compile`,
-   `runtime`, `compileOnly`, `compileClasspath`, 'testCompile`, and
-   `testRuntime`; can be customized via the `configurations`
-   attribute).  You'll want to invoke one or more of these macros.
+1. install `gradle` as it's own internal dependency (first time only;
+   does not interfere with any other gradle you might have installed).
 
-2. `BUILD`: the build file contains a `java_library` rule foreach
-   generated configuration. Each rule exports the flattened transitive
-   set of dependencies.  You'll use these as dependencies for your
-   java rules.
+1. call `gradle dependencies` and parse the output,
 
-### 3. Load the generated `@jetty//:rules.bzl` in your WORKSPACE and invoke the desired configuration.
+1. fetch the expected sha1 values for named artifacts,
 
-> Alias the loaded function into a more specific name within your
-> workspace.
+1. write a `@guice//:rules.bzl` file having the requisite `maven_jar`
+   rules (organized by configuration),
+
+1. write a `@guice//:BUILD` file with the requisite `java_library`
+   that bundle/export dependencies (one per configuration).
+
+1. print out a formatted `maven_repository` *"closed-form"* rule with
+   all the transitive dependencies explicitly named.
+
+### 2b. Copy and paste the closed-form back into your WORKSPACE.
+
+`rules_maven` will regurgitate a so-called *closed-form*
+`maven_repository` rule enumerating the transitive dependencies and
+their sha1 values in the `transitive_deps` attribute.  Assuming you
+trust the data, copy and paste this back into your `WORKSPACE`.
 
 ```python
-load("@jetty//:rules.bzl", jetty_runtime = "runtime")
-jetty_runtime()
+maven_repository(
+  name = 'guice',
+  deps = [
+    'com.google.inject:guice:4.1.0',
+  ],
+  transitive_deps = [
+    '0235ba8b489512805ac13a8f9ea77a1ca5ebe3e8:aopalliance:aopalliance:1.0',
+    '6ce200f6b23222af3d8abb6b6459e6c44f4bb0e9:com.google.guava:guava:19.0',
+    'eeb69005da379a10071aa4948c48d89250febb07:com.google.inject:guice:4.1.0',
+    '6975da39a7040257bd51d21a231b76c915872d38:javax.inject:javax.inject:1',
+  ],
+)
+```
+
+Once the `transitive_deps` is stable (all transitive deps and their correct
+sha1 values are listed), `rules_maven` will be silent.
+
+### 3. Load the `@guice//:rules.bzl` file in your WORKSPACE and invoke the desired macro configuration.
+
+The `rules.bzl` file (a generated file) contains macro definitions
+that ultimately define `native.maven_jar` rules.  A separate macro is
+defined for each *gradle configuration*.  The default configurations
+are: `compile`, `runtime`, `compileOnly`, `compileClasspath`,
+`testCompile`, and `testRuntime`.  (these can be customized via the
+`configurations` attribute).
+
+The name of the macros are the gradle configuration name, prefixed
+with the rule name.  In this case there are the following macros (and
+several others):
+
+* `guice_compile`: Provide compile-time dependencies.
+* `guice_runtime`: Provide runtime-time dependencies.
+* ...
+
+
+```python
+load("@guice//:rules.bzl", "guice_compile")
+guice_compile()
+```
+
+> In this case, both `_compile` and `_runtime` macros provide the same dependencies.
+
+> You can inspect the contents of the generated file via:
+
+```sh
+$ cat $(bazel info output_base)/external/guice/rules.bzl
 ```
 
 ### 4. Depend on the java_library rule for the desired configuration.
@@ -84,12 +129,9 @@ jetty_runtime()
 java_binary(
   name = "app",
   main_class = "example.App",
-  deps = ["@jetty//:runtime"],
+  deps = ["@guice//:compile"],
 )
 ```
-
-Consult the documentation of `rules_require` for exclusions,
-overrides, and dependency replacement options.
 
 ### Final WORKSPACE
 
@@ -101,35 +143,28 @@ git_repository(
   remote = "https://github.com/pubref/rules_maven",
   commit = HEAD, # replace with latest version
 )
-
-load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories")
+load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories", "maven_repository")
 maven_repositories()
 
+
 maven_repository(
-    name = "jetty",
-    artifacts = [
-        "org.eclipse.jetty:jetty-server:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-server:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-jmx:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-plus:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-jndi:9.3.10.v20160621",
-        "org.eclipse.jetty:jetty-webapp:9.3.10.v20160621",
-        "org.eclipse.jetty.websocket:websocket-servlet:9.3.10.v20160621",
-        "org.eclipse.jetty.websocket:javax-websocket-client-impl:9.3.10.v20160621",
-        "org.eclipse.jetty.websocket:javax-websocket-server-impl:9.3.10.v20160621",
-    ],
+  name = 'guice',
+  deps = [
+    'com.google.inject:guice:4.1.0',
+  ],
+  transitive_deps = [
+    '0235ba8b489512805ac13a8f9ea77a1ca5ebe3e8:aopalliance:aopalliance:1.0',
+    '6ce200f6b23222af3d8abb6b6459e6c44f4bb0e9:com.google.guava:guava:19.0',
+    'eeb69005da379a10071aa4948c48d89250febb07:com.google.inject:guice:4.1.0',
+    '6975da39a7040257bd51d21a231b76c915872d38:javax.inject:javax.inject:1',
+  ],
 )
-load("@jetty//:rules.bzl", jetty_runtime = "runtime")
-jetty_runtime()
+load("@guice//:rules.bzl", "guice_compile")
+guice_compile()
 ```
 
 # Credits
 
-Depending on a rule that is defined earlier in the workspace is now
-possible due to the interleaved loading and analysis phases of bazel.
-Previously, this approach would not work.  Thanks Bazel team for
-making this happen.
-
 The anteater image is a reference to the O'Reilly book cover.  This image is
 actually "Peter", the University of California Irvine
-mascot. [**ZOT!**](http://studentaffairs.uci.edu/resources/right-facing-blk-outline.png).
+mascot. [**ZOT!**](http://studentaffairs.uci.edu/resources/right-facing-blk-outline.png)
