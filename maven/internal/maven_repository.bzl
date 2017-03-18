@@ -2,16 +2,20 @@ load("//maven:internal/require_toolchain.bzl", "require_toolchain")
 
 _BUILD_GRADLE = """
 apply plugin: 'java'
+
 configurations.all {
   resolutionStrategy.failOnVersionConflict()
 }
+
 repositories {
     mavenCentral()
 }
+
 dependencies {
-   %s
+%s
 }
 """
+
 
 def _flatten(name):
     """Convert characters {dot, dash} to underscore.
@@ -302,6 +306,8 @@ def _format_maven_repository(rtx, configs, all_artifacts):
       all_artifacts: !dict<string,!Artifact>
     Returns: !list<string>
     """
+    ws_names = sorted(all_artifacts.keys())
+
     lines = []
     lines.append("maven_repository(")
     lines.append("    name = '%s'," % rtx.name)
@@ -309,8 +315,18 @@ def _format_maven_repository(rtx, configs, all_artifacts):
     for coord in rtx.attr.deps:
         lines.append("        '%s'," % coord)
     lines.append("    ],")
+    if (rtx.attr.exclude):
+        lines.append("    exclude = {")
+        for k, v in rtx.attr.exclude.items():
+            lines.append("        '%s': [" % k)
+            for item in v:
+                lines.append("            '%s'," % item)
+            lines.append("        ],")
+        lines.append("    },")
+
     lines.append("    transitive_deps = [")
-    for ws_name, artifact in all_artifacts.items():
+    for ws_name in ws_names:
+        artifact = all_artifacts[ws_name]
         lines.append("        '%s:%s'," % (artifact["sha1"], artifact["coordinate"]))
     lines.append("    ],")
     lines.append(")")
@@ -343,6 +359,37 @@ def _create_artifact_cache_from_transitive_deps(entries):
     return cache
 
 
+def _format_gradle_exclude(spec):
+    parts = spec.split(':')
+    group = parts[0]
+    module = parts[1]
+    filters = []
+    if group:
+        filters.append("group: '%s'" % group)
+    if module:
+        filters.append("module: '%s'" % module)
+    if len(filters) == 0:
+        fail('Malformed exclude specification, should have form "GROUP?:MODULE?", but at least one must be present.')
+    return '    exclude ' + ', '.join(filters) + '\n'
+
+
+def _format_gradle_dependency(dep, exclude = {}):
+    parts = dep.split(':')
+    name = ':'.join(parts[0:2])
+    exclude_list = exclude.get(name)
+
+    s = "  compile('%s')" % dep
+
+    if exclude_list:
+        s += ' {\n'
+        for exclude in exclude_list:
+            s += _format_gradle_exclude(exclude)
+        s += '  }'
+
+    s += '\n'
+    return s
+
+
 def _maven_repository_impl(rtx):
     java = rtx.which("java")
     launcher_jar = rtx.path(rtx.attr._gradle_launcher_jar)
@@ -353,7 +400,7 @@ def _maven_repository_impl(rtx):
     transitive_artifacts = _create_artifact_cache_from_transitive_deps(rtx.attr.transitive_deps)
 
     # Write a build.gradle file where our exection scope will be.
-    gdeps = ["  compile('%s')" % a for a in rtx.attr.deps]
+    gdeps = [_format_gradle_dependency(a, rtx.attr.exclude) for a in rtx.attr.deps]
     rtx.file("build.gradle", _BUILD_GRADLE % "\n".join(gdeps));
 
     # Execute the gradle dependencies task
@@ -388,6 +435,8 @@ maven_repository = repository_rule(
     attrs = {
         "deps": attr.string_list(
             mandatory = True,
+        ),
+        "exclude": attr.string_list_dict(
         ),
         "transitive_deps": attr.string_list(
         ),

@@ -163,6 +163,17 @@ load("@guice//:rules.bzl", "guice_compile")
 guice_compile()
 ```
 
+
+### maven_repository attributes
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | `None` | The rule name. |
+| `deps` | `string_list` | `[]` | List of maven artifacts having the form `NAME:GROUP:VERSION` |
+| `transitive_deps` | `string_list` | `[]` | List of maven artifacts in the transitive set reachable from `deps`.  The have the form `SHA1:NAME:GROUP:VERSION`, and are calculated by rules_maven via a generated `build.gradle` file. |
+| `exclude` | `string_list_dict` | `{}` | List of artifacts to exclude, in the form `{ 'NAME:GROUP': ['EXCLUDED_GROUP:EXCLUDED_NAME']` |
+| `configurations` | `string_list` | `["compile", "default", "runtime", "compileOnly", "compileClasspath"]` | List of configurations to generate a corresponding rule for. |
+
 # Credits
 
 The anteater image is a reference to the O'Reilly book cover.  This image is

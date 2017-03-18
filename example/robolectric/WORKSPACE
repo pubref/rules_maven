@@ -1,0 +1,65 @@
+local_repository(
+  name = "org_pubref_rules_maven",
+  path = "/Users/pcj/github/rules_maven",
+)
+
+load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories", "maven_repository")
+maven_repositories()
+
+maven_repository(
+    name = 'robolectric',
+    deps = [
+        'org.robolectric:robolectric:3.3',
+        'org.robolectric:shadows-httpclient:3.3',
+        'org.robolectric:shadows-maps:3.3',
+        'org.robolectric:shadows-multidex:3.3',
+        'org.robolectric:shadows-play-services:3.3',
+        'org.robolectric:shadows-support-v4:3.3',
+        'org.robolectric:android-all:7.1.0_r7-robolectric-0',
+    ],
+    exclude = {
+        'org.robolectric:robolectric': [
+            'org.apache.maven:maven-ant-tasks',
+            'org.apache.ant:ant',
+        ],
+    },
+    transitive_deps = [
+        '745a7e2f35fdbe6336922e0d492c979dbbfa74fb:com.almworks.sqlite4java:sqlite4java:0.282',
+        'c2d6267c3ad0435ddf9e27a94a0e0af4ca3fdfbb:com.google.android.apps.common.testing.accessibility.framework:accessibility-test-framework:2.1',
+        '89507701249388e1ed5ddcf8c41f4ce1be7831ef:com.google.guava:guava:20.0',
+        'd9521f2aecb909835746b7a5facf612af5e890e8:com.google.protobuf:protobuf-java:2.6.1',
+        '786d9055d4ca8c1aab4a7d4ac8283f973fd7e41f:com.ibm.icu:icu4j:53.1',
+        '520d90f30f36a0d6ba2dc929d980831631ad6a92:com.thoughtworks.xstream:xstream:1.4.8',
+        'ee5bcf62c1acf76434ee9f1c67a840bafef72a6d:com.ximpleware:vtd-xml:2.11',
+        'fd32786786e2adb664d5ecc965da47629dca14ba:commons-codec:commons-codec:1.3',
+        '5043bfebc3db072ed80fbd362e7caf00e885d8ae:commons-logging:commons-logging:1.1.1',
+        'fcacc35075d9c3114da4c4122b42d78786135c90:org.apache.httpcomponents:httpclient:4.0.3',
+        'e813b8722c387b22e1adccf7914729db09bcb4a9:org.apache.httpcomponents:httpcore:4.0.1',
+        'b532c3fc4f66bcfee4989a3514f1cd56203a33ad:org.assertj:assertj-core:2.6.0',
+        'ce091790943599535cbb4de8ede84535b0c1260c:org.bouncycastle:bcprov-jdk16:1.46',
+        '42a25dc3219429f0e5d060061f71acb49bf010a0:org.hamcrest:hamcrest-core:1.3',
+        '4785a3c21320980282f9f33d0d1264a69040538f:org.hamcrest:hamcrest-library:1.3',
+        '2fd56467a018aafe6ec6a73ccba520be4a7e1565:org.ow2.asm:asm:5.0.1',
+        '7b7147a390a93a14d2edfdcf3f7b0e87a0939c3e:org.ow2.asm:asm-commons:5.0.1',
+        '1b1e6e9d869acd704056d0a4223071a511c619e6:org.ow2.asm:asm-tree:5.0.1',
+        'c6478c2c63230d9480023ea5d90180c1e4f3b893:org.robolectric:android-all:7.1.0_r7-robolectric-0',
+        'b624b3deb668cdcdc3ac72fa0e44834545f5b789:org.robolectric:robolectric:3.3',
+        '6b6ead0dbcb60102b6418c9ada5ba0258c71f78f:org.robolectric:robolectric-annotations:3.3',
+        '054c1bae3bfe71f3db91d2e6139588857840c215:org.robolectric:robolectric-junit:3.3',
+        'b15a15604f063fb62d7798a4fbbcd8e4528cc2ba:org.robolectric:robolectric-resources:3.3',
+        '8c62040eef0d9eab0a84e910d103ec7a39ebefce:org.robolectric:robolectric-sandbox:3.3',
+        '36b4154103b37f8c400c48176bbfe076401671ef:org.robolectric:robolectric-utils:3.3',
+        '10ebcc3838b1a832bb5a23fc6a4d5f4db0dcc80e:org.robolectric:shadow-api:3.3',
+        '535474d673c1e64750751eb905e97dd3531f2e24:org.robolectric:shadows-core:3.3',
+        '1d4aa57949aede78778e5a51b7e338a813798711:org.robolectric:shadows-httpclient:3.3',
+        '5c0e1fced6df24f65da56c2879ed4be7d34a146f:org.robolectric:shadows-maps:3.3',
+        '3b2b5dbd197adc2d3a58169ff0555e28f672bfff:org.robolectric:shadows-multidex:3.3',
+        '2d12ba0ff084965941e271b7b37cc2e6aa31c75f:org.robolectric:shadows-play-services:3.3',
+        '02562791d9304bcc6f48dfc5afd3a3bfe28d3b85:org.robolectric:shadows-support-v4:3.3',
+        '2b8e230d2ab644e4ecaa94db7cdedbc40c805dfa:xmlpull:xmlpull:1.1.3.1',
+        '19d4e90b43059058f6e056f794f0ea4030d60b86:xpp3:xpp3_min:1.1.4c',
+    ],
+)
+
+load("@robolectric//:rules.bzl", "robolectric_runtime", "robolectric_default")
+robolectric_default()
