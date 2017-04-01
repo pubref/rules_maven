@@ -40,7 +40,9 @@ def _create_artifact_from_coordinate(coord):
     """Create an dict representation of the coordinate.
     Args:
       coord: string - A colon-separated string. Under normal cases,
-      there should be 3 parts.
+      there should be 3 parts.  If an artifact was chosen by some
+      resolution strategy, it may take the form such as
+      <code>io.grpc:grpc-core:[1.2.0] -> 1.2.0</code>
     Returns: !dict<string,string> - {ws_name: string,
                                      group:string,
                                      group_name: string,
@@ -48,12 +50,17 @@ def _create_artifact_from_coordinate(coord):
                                      coordinate: string,
                                      sha1: None}
     """
-    parts = coord.split(":")
+    #print("COORD: '%s'" % coord)
+    mapping = coord.split(" -> ")
+    artifact = mapping[0]
+    parts = artifact.split(":")
     if  len(parts) != 3:
         fail("Should take the form 'GROUP:NAME:VERSION': " + coord, "deps")
     group = parts[0]
     name = parts[1]
     version = parts[2]
+    if len(mapping) == 2:
+        version = mapping[1]
     coordinate = ":".join([group, name, version])
     ws_name = _format_ws_name(group, name)
 
@@ -315,6 +322,7 @@ def _format_maven_repository(rtx, configs, all_artifacts):
     for coord in rtx.attr.deps:
         lines.append("        '%s'," % coord)
     lines.append("    ],")
+
     if (rtx.attr.exclude):
         lines.append("    exclude = {")
         for k, v in rtx.attr.exclude.items():
@@ -323,6 +331,12 @@ def _format_maven_repository(rtx, configs, all_artifacts):
                 lines.append("            '%s'," % item)
             lines.append("        ],")
         lines.append("    },")
+
+    if (rtx.attr.force):
+        lines.append("    force = [")
+        for item in rtx.attr.force:
+            lines.append("        '%s'," % item)
+        lines.append("    ],")
 
     lines.append("    transitive_deps = [")
     for ws_name in ws_names:
@@ -373,6 +387,17 @@ def _format_gradle_exclude(spec):
     return '    exclude ' + ', '.join(filters) + '\n'
 
 
+def _format_gradle_force(items):
+    lines = []
+    lines.append('configurations.all {')
+    lines.append('  resolutionStrategy {')
+    for item in items:
+        lines.append('force "%s"' % item)
+    lines.append('  }')
+    lines.append('}')
+    lines.append('')
+    return lines
+
 def _format_gradle_dependency(dep, exclude = {}):
     parts = dep.split(':')
     name = ':'.join(parts[0:2])
@@ -400,8 +425,13 @@ def _maven_repository_impl(rtx):
     transitive_artifacts = _create_artifact_cache_from_transitive_deps(rtx.attr.transitive_deps)
 
     # Write a build.gradle file where our exection scope will be.
-    gdeps = [_format_gradle_dependency(a, rtx.attr.exclude) for a in rtx.attr.deps]
-    rtx.file("build.gradle", _BUILD_GRADLE % "\n".join(gdeps));
+    glines = []
+
+    if rtx.attr.force:
+        glines += _format_gradle_force(rtx.attr.force)
+
+    glines += [_format_gradle_dependency(a, rtx.attr.exclude) for a in rtx.attr.deps]
+    rtx.file("build.gradle", _BUILD_GRADLE % "\n".join(glines));
 
     # Execute the gradle dependencies task
     result = _execute(rtx, [java, '-jar', launcher_jar, 'dependencies']);
@@ -438,6 +468,8 @@ maven_repository = repository_rule(
         ),
         "exclude": attr.string_list_dict(
         ),
+        "force": attr.string_list(
+        ),
         "transitive_deps": attr.string_list(
         ),
         "_java": attr.label(
@@ -452,7 +484,7 @@ maven_repository = repository_rule(
         ),
         "configurations": attr.string_list(
             default = ["compile", "default", "runtime",
-                       "compileOnly", "compileClasspath"],
+                       "compileOnly", "compileClasspath", "testCompile"],
         ),
     }
 )
