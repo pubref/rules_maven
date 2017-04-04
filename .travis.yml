@@ -1,6 +1,3 @@
-dist: trusty
-sudo: required
-osx_image: xcode8
 language: android
 
 jdk:
@@ -13,10 +10,6 @@ android:
       - build-tools-25.0.2
       - android-25
       - extra-android-m2repository
-
-os:
-  - linux
-  - osx
 
 env:
   - V=0.4.5
