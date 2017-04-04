@@ -1,19 +1,25 @@
 dist: trusty
 sudo: required
 osx_image: xcode8
-language: java
+language: android
+
+jdk:
+- oraclejdk8
+
+android:
+   components:
+      - tools
+      - platform-tools
+      - build-tools-25.0.2
+      - android-25
+      - extra-android-m2repository
 
 os:
   - linux
   - osx
 
 env:
-  - V=HEAD
-  - V=0.4.2
-  - V=0.4.1
-  - V=0.4.0
-  - V=0.3.2
-  - V=0.3.1
+  - V=0.4.5
 
 before_install:
   - OS=linux
@@ -34,7 +40,8 @@ before_install:
 
 script:
   - |
-    bazel \
+      ANDROID_HOME=/usr/local/android-sdk \
+      cd example/robolectric && bazel \
       --output_base=$HOME/.cache/bazel \
       --batch \
       --host_jvm_args=-Xmx500m \
@@ -47,8 +54,7 @@ script:
       --genrule_strategy=standalone \
       --local_resources=400,2,1.0 \
       --worker_verbose \
-      //... \
-      $FLAGS
+      //src/test:my_activity_test
 
 notifications:
   email: false
