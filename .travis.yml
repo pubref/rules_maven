@@ -9,10 +9,7 @@ os:
 
 env:
   - V=HEAD
-  - V=0.4.2
-  - V=0.4.1
-  - V=0.4.0
-  - V=0.3.2
+  - V=0.4.5
   - V=0.3.1
 
 before_install:
@@ -34,7 +31,7 @@ before_install:
 
 script:
   - |
-    bazel \
+    (cd example/grpc_java && bazel \
       --output_base=$HOME/.cache/bazel \
       --batch \
       --host_jvm_args=-Xmx500m \
@@ -46,9 +43,21 @@ script:
       --spawn_strategy=standalone \
       --genrule_strategy=standalone \
       --local_resources=400,2,1.0 \
-      --worker_verbose \
-      //... \
-      $FLAGS
+      //src/main/java:main) \
+      && \
+      (cd example/robolectric && bazel \
+      --output_base=$HOME/.cache/bazel \
+      --batch \
+      --host_jvm_args=-Xmx500m \
+      --host_jvm_args=-Xms500m \
+      test \
+      --verbose_failures \
+      --test_output=errors \
+      --test_strategy=standalone \
+      --spawn_strategy=standalone \
+      --genrule_strategy=standalone \
+      --local_resources=400,2,1.0 \
+      //:import_test)
 
 notifications:
   email: false

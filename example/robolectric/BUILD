@@ -1,0 +1,1 @@
+java_test(    name = "import_test",    test_class = "RobolectricImportTest",    srcs = [        "src/test/java/RobolectricImportTest.java",    ],    deps = [        "@robolectric//:default",        "@junit4//:default",    ],    visibility = [        "//visibility:public"    ])

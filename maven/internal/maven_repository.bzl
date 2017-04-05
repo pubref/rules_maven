@@ -1,21 +1,5 @@
 load("//maven:internal/require_toolchain.bzl", "require_toolchain")
 
-_BUILD_GRADLE = """
-apply plugin: 'java'
-
-configurations.all {
-  resolutionStrategy.failOnVersionConflict()
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-%s
-}
-"""
-
 
 def _flatten(name):
     """Convert characters {dot, dash} to underscore.
@@ -26,17 +10,24 @@ def _flatten(name):
     return name.replace(".", "_").replace("-", "_")
 
 
-def _format_ws_name(group, name):
+def _format_ws_name(group, name, version = None):
     """Create the workspace name
     Args:
-      group: string - The maven group.
-      name: string - The maven artifact name.
+      group: string - The maven group (required).
+      name: string - The maven artifact name (required).
+      version: string - The maven version name (optional).
     Returns: string - the workspace name.
     """
-    return "%s_%s" % (_flatten(group), _flatten(name));
+    parts = [
+        _flatten(group),
+        _flatten(name),
+    ]
+    if version:
+        parts.append(_flatten(version))
+    return "_".join(parts)
 
 
-def _create_artifact_from_coordinate(coord):
+def _create_artifact_from_coordinate(coord, disambiguate):
     """Create an dict representation of the coordinate.
     Args:
       coord: string - A colon-separated string. Under normal cases,
@@ -62,20 +53,23 @@ def _create_artifact_from_coordinate(coord):
     if len(mapping) == 2:
         version = mapping[1]
     coordinate = ":".join([group, name, version])
-    ws_name = _format_ws_name(group, name)
+    if disambiguate:
+        ws_name = _format_ws_name(group, name, version)
+    else:
+        ws_name = _format_ws_name(group, name)
 
     return {
         "ws_name": ws_name,
         "group": group,
         "name": name,
-        "group_name": group + ':' + name,
+        "group_name": group + ":" + name,
         "version": version,
         "coordinate": coordinate,
         "sha1": None,
     }
 
 
-def _create_artifact_from_transitive_dependency(dep):
+def _create_artifact_from_transitive_dependency(dep, disambiguate = False):
     """Create an dict representation of the dependency.
     Args:
       dep: string - A colon-separated string.  There must be a least 4 parts. The first part is the
@@ -95,7 +89,7 @@ def _create_artifact_from_transitive_dependency(dep):
 
     # Go ahead and build the artifact dict now so we can add fields to
     # it shortly.
-    artifact = _create_artifact_from_coordinate(":".join(parts))
+    artifact = _create_artifact_from_coordinate(":".join(parts), disambiguate)
 
     # Examine the hash.  If it looks like a sha1, great.  Otherwise
     # check it against the list of special tokens (currently only 1:
@@ -153,7 +147,7 @@ def _get_artifact_sha1(rtx, artifact):
     return sha1
 
 
-def _parse_gradle_dependencies(rtx, transitive_artifacts, configurations, out):
+def _parse_gradle_dependencies(rtx, transitive_artifacts, configurations, out, disambiguate):
     """Parse the output of 'gradle dependencies'
     Args:
       rtx: !repository_ctx
@@ -193,9 +187,11 @@ def _parse_gradle_dependencies(rtx, transitive_artifacts, configurations, out):
                 if not artifact.endswith(" (*)"):
                     # If the artifact is not a root, it does not need
                     # to be listed in the deps attribute.
+
                     if len(parts[0]) > 1 and artifact in rtx.attr.deps:
                         fail("%r is a transitive dependency and does not need to be explicitly declared in deps" % (artifact), "deps")
-                    artifact = _create_artifact_from_coordinate(artifact)
+
+                    artifact = _create_artifact_from_coordinate(artifact, disambiguate)
                     ws_name = artifact["ws_name"]
                     # Do we have a listing for this one in the transitive set?
                     transitive_artifact = transitive_artifacts.get(ws_name)
@@ -210,7 +206,8 @@ def _parse_gradle_dependencies(rtx, transitive_artifacts, configurations, out):
                         if not transitive_artifact.get("sha1"):
                             transitive_artifact["sha1"] = _get_artifact_sha1(rtx,
                                                                              transitive_artifact)
-                        configs[section][ws_name] = transitive_artifact
+                        config = configs[section]
+                        config[ws_name] = transitive_artifact
                     # Mark this as seen to be able detect extraneous elements in the transitive_deps attribute.
                     transitive_artifact["seen"] = True
 
@@ -317,13 +314,14 @@ def _format_maven_repository(rtx, configs, all_artifacts):
 
     lines = []
     lines.append("maven_repository(")
+
     lines.append("    name = '%s'," % rtx.name)
+
     lines.append("    deps = [")
     for coord in rtx.attr.deps:
         lines.append("        '%s'," % coord)
-    lines.append("    ],")
 
-    if (rtx.attr.exclude):
+    if rtx.attr.exclude:
         lines.append("    exclude = {")
         for k, v in rtx.attr.exclude.items():
             lines.append("        '%s': [" % k)
@@ -332,7 +330,7 @@ def _format_maven_repository(rtx, configs, all_artifacts):
             lines.append("        ],")
         lines.append("    },")
 
-    if (rtx.attr.force):
+    if rtx.attr.force:
         lines.append("    force = [")
         for item in rtx.attr.force:
             lines.append("        '%s'," % item)
@@ -343,6 +341,10 @@ def _format_maven_repository(rtx, configs, all_artifacts):
         artifact = all_artifacts[ws_name]
         lines.append("        '%s:%s'," % (artifact["sha1"], artifact["coordinate"]))
     lines.append("    ],")
+
+    if rtx.attr.experimental_disambiguate_maven_jar_workspace_names:
+        lines.append("    experimental_disambiguate_maven_jar_workspace_names = True,")
+
     lines.append(")")
     return lines
 
@@ -360,7 +362,7 @@ def _execute(rtx, cmds):
     return result
 
 
-def _create_artifact_cache_from_transitive_deps(entries):
+def _create_artifact_cache_from_transitive_deps(entries, disambiguate = False):
     """Build a dict of artifacts keyed by the workspace name.
     Args:
       entries: !list<string>
@@ -368,13 +370,18 @@ def _create_artifact_cache_from_transitive_deps(entries):
     """
     cache = {}
     for entry in entries:
-        artifact = _create_artifact_from_transitive_dependency(entry)
+        artifact = _create_artifact_from_transitive_dependency(entry, disambiguate)
         cache[artifact["ws_name"]] = artifact
     return cache
 
 
 def _format_gradle_exclude(spec):
-    parts = spec.split(':')
+    """Format a gradle exclude specification.
+    Args:
+      spec: string of the form GROUP:MODULE
+    Return: !list<string> A list of formatted lines
+    """
+    parts = spec.split(":")
     group = parts[0]
     module = parts[1]
     filters = []
@@ -383,36 +390,72 @@ def _format_gradle_exclude(spec):
     if module:
         filters.append("module: '%s'" % module)
     if len(filters) == 0:
-        fail('Malformed exclude specification, should have form "GROUP?:MODULE?", but at least one must be present.')
-    return '    exclude ' + ', '.join(filters) + '\n'
+        fail("Malformed exclude specification, should have form 'GROUP?:MODULE?', but at least one must be present.")
+    return "    exclude " + ", ".join(filters) + "\n"
 
 
-def _format_gradle_force(items):
-    lines = []
-    lines.append('configurations.all {')
-    lines.append('  resolutionStrategy {')
-    for item in items:
-        lines.append('force "%s"' % item)
-    lines.append('  }')
-    lines.append('}')
-    lines.append('')
-    return lines
-
-def _format_gradle_dependency(dep, exclude = {}):
-    parts = dep.split(':')
-    name = ':'.join(parts[0:2])
+def _format_gradle_dependency(configuration, dep, exclude = {}):
+    """Format the list of dependencies.
+    Args:
+      name (string): Name of the gradle configuration
+      dep (string): An artifact ID
+      exclude (!dict<string,!list<string>>)
+    Return (!list<string>): A list of formatted lines
+    """
+    parts = dep.split(":")
+    name = ":".join(parts[0:2])
     exclude_list = exclude.get(name)
 
-    s = "  compile('%s')" % dep
+    s = "  %s('%s')" % (configuration, dep)
 
     if exclude_list:
-        s += ' {\n'
+        s += " {\n"
         for exclude in exclude_list:
             s += _format_gradle_exclude(exclude)
-        s += '  }'
+        s += "  }"
 
-    s += '\n'
+    s += "\n"
     return s
+
+
+def _format_build_gradle_plugins():
+    lines = []
+    lines.append("apply plugin: 'java'")
+    return lines
+
+
+def _format_build_gradle_resolution_strategy(force):
+    lines = []
+    lines.append("configurations.all {")
+    lines.append("  resolutionStrategy {")
+    lines.append("    failOnVersionConflict()")
+    if force:
+        for item in force:
+            lines.append("    force '%s'" % item)
+    lines.append("  }")
+    lines.append("}")
+    return lines
+
+
+def _format_build_gradle_repositories():
+    lines = []
+    lines.append("repositories {")
+    lines.append("    mavenCentral()")
+    lines.append("}")
+    return lines
+
+
+def _format_build_gradle_file(rtx):
+    lines = []
+    lines += _format_build_gradle_plugins()
+    lines += _format_build_gradle_repositories()
+    lines += _format_build_gradle_resolution_strategy(rtx.attr.force)
+
+    lines.append("dependencies {")
+    lines += [_format_gradle_dependency("compile", a, rtx.attr.exclude) for a in rtx.attr.deps]
+    lines.append("}")
+
+    return "\n".join(lines)
 
 
 def _maven_repository_impl(rtx):
@@ -422,26 +465,23 @@ def _maven_repository_impl(rtx):
     # Generate a set of artifacts given by the transitive_deps
     # attribute, if one is present.  This set will be used to resolve
     # conflicts and/or omit desired artifacts.
-    transitive_artifacts = _create_artifact_cache_from_transitive_deps(rtx.attr.transitive_deps)
+    transitive_artifacts = _create_artifact_cache_from_transitive_deps(
+        rtx.attr.transitive_deps,
+        rtx.attr.experimental_disambiguate_maven_jar_workspace_names)
 
     # Write a build.gradle file where our exection scope will be.
-    glines = []
-
-    if rtx.attr.force:
-        glines += _format_gradle_force(rtx.attr.force)
-
-    glines += [_format_gradle_dependency(a, rtx.attr.exclude) for a in rtx.attr.deps]
-    rtx.file("build.gradle", _BUILD_GRADLE % "\n".join(glines));
+    rtx.file("build.gradle", _format_build_gradle_file(rtx));
 
     # Execute the gradle dependencies task
-    result = _execute(rtx, [java, '-jar', launcher_jar, 'dependencies']);
+    result = _execute(rtx, [java, "-jar", launcher_jar, "dependencies"]);
     #print("result: %s" % result.stdout)
 
     # Generate a set of configurations based on the output of the command.
     configs = _parse_gradle_dependencies(rtx,
                                          transitive_artifacts,
                                          rtx.attr.configurations,
-                                         result.stdout)
+                                         result.stdout,
+                                         rtx.attr.experimental_disambiguate_maven_jar_workspace_names)
 
     # If there are any new entries in the transitive_artifacts dict,
     # print the rule so it can be copy-pasted over.
@@ -464,7 +504,8 @@ maven_repository = repository_rule(
     implementation = _maven_repository_impl,
     attrs = {
         "deps": attr.string_list(
-            mandatory = True,
+        ),
+        "experimental_disambiguate_maven_jar_workspace_names": attr.bool(
         ),
         "exclude": attr.string_list_dict(
         ),
@@ -483,8 +524,12 @@ maven_repository = repository_rule(
             cfg = "host",
         ),
         "configurations": attr.string_list(
-            default = ["compile", "default", "runtime",
-                       "compileOnly", "compileClasspath", "testCompile"],
+            default = [
+                "compile",
+                "default",
+                "runtime",
+                "testCompile",
+            ],
         ),
     }
 )
