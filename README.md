@@ -163,6 +163,30 @@ load("@guice//:rules.bzl", "guice_compile")
 guice_compile()
 ```
 
+
+### maven_repository attributes
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | `None` | The rule name. |
+| `deps` | `string_list` | `[]` | List of maven artifacts having the form `NAME:GROUP:VERSION` |
+| `transitive_deps` | `string_list` | `[]` | List of maven artifacts in the transitive set reachable from `deps`.  The have the form `SHA1:NAME:GROUP:VERSION`, and are calculated by rules_maven via a generated `build.gradle` file. |
+| `exclude` | `string_list_dict` | `{}` | List of artifacts to exclude, in the form `{ 'NAME:GROUP': ['EXCLUDED_GROUP:EXCLUDED_NAME']` |
+| `force` | `string_list` | `[]` | List of artifacts to force, in the form `[ 'NAME:GROUP:VERSION']` |
+| `configurations` | `string_list` | `["compile", "default", "runtime", "compileOnly", "compileClasspath"]` | List of configurations to generate a corresponding rule for. |
+| `experimental_disambiguate_maven_jar_workspace_names` | `bool` | `False` | See Note |
+
+
+> `experimental_disambiguate_maven_jar_workspace_names`: This option
+> changes the name of the generated workspace name for maven_jar
+> rules.  For example, consider the artifact
+> `com.google.guava:guava:20.0`.  The corresponding workspace name
+> under default conditions is `com_google_guava_guava`.  If
+> `experimental_disambiguate_maven_jar_workspace_names = True`, the
+> workspace name includes the version specifier and becomes
+> `com_google_guava_guava_20_0`.
+
+
 # Credits
 
 The anteater image is a reference to the O'Reilly book cover.  This image is
