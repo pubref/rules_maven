@@ -16,7 +16,7 @@ def _needs_install(name, dep, hkeys=["sha256", "sha1", "tag"], verbose=0):
                 msg = """
 An existing {0} rule '{1}' was already loaded with a {2} value of '{3}'.  Refusing to overwrite this with the requested value ('{4}').
 Either remove the pre-existing rule from your WORKSPACE or exclude it from loading by rules_protobuf.
-""".format(existing_rule["rule"], name, hkey, actual, expected)
+""".format(existing_rule["kind"], name, hkey, actual, expected)
 
                 fail(msg)
             else:
