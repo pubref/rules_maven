@@ -320,6 +320,7 @@ def _format_maven_repository(rtx, configs, all_artifacts):
     lines.append("    deps = [")
     for coord in rtx.attr.deps:
         lines.append("        '%s'," % coord)
+    lines.append("    ],")
 
     if rtx.attr.exclude:
         lines.append("    exclude = {")
