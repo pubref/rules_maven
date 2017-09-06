@@ -14,11 +14,11 @@ def _needs_install(name, dep, hkeys=["sha256", "sha1", "tag"], verbose=0):
         if expected:
             if expected != actual:
                 msg = """
-An existing {0} rule '{1}' was already loaded with a {2} value of '{3}'.  Refusing to overwrite this with the requested value ('{4}').
-Either remove the pre-existing rule from your WORKSPACE or exclude it from loading by rules_protobuf.
+An existing {0} rule '{1}' was already loaded with a {2} value of '{3}'.  Overwriting this with the requested value ('{4}').
+You *should* either remove the pre-existing rule from your WORKSPACE or exclude it from loading by rules_maven.
 """.format(existing_rule["kind"], name, hkey, actual, expected)
 
-                fail(msg)
+                print(msg)
             else:
                 if verbose > 1: print("Skip reload %s: %s = %s" % (name, hkey, actual))
                 return False

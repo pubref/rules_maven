@@ -92,6 +92,11 @@ maven_repository(
 Once the `transitive_deps` is stable (all transitive deps and their correct
 sha1 values are listed), `rules_maven` will be silent.
 
+> Note: make sure you leave out the artifact ID type, `rules_maven`
+> will get confused about it.  For example, don't say
+> `com.google.inject:guice:jar:4.1.0` (leave out the `:jar`
+> substring).
+
 ### 3. Load the `@guice//:rules.bzl` file in your WORKSPACE and invoke the desired macro configuration.
 
 The `rules.bzl` file (a generated file) contains macro definitions
@@ -173,6 +178,8 @@ guice_compile()
 | `transitive_deps` | `string_list` | `[]` | List of maven artifacts in the transitive set reachable from `deps`.  The have the form `SHA1:NAME:GROUP:VERSION`, and are calculated by rules_maven via a generated `build.gradle` file. |
 | `exclude` | `string_list_dict` | `{}` | List of artifacts to exclude, in the form `{ 'NAME:GROUP': ['EXCLUDED_GROUP:EXCLUDED_NAME']` |
 | `force` | `string_list` | `[]` | List of artifacts to force, in the form `[ 'NAME:GROUP:VERSION']` |
+| `omit` | `string_list` | `[]` | List of artifacts to skip, in the form `[ 'NAME:GROUP:VERSION']` |
+| `repositories` | `string_list_dict` | `{}` | A mapping of artifact-id pattern to url (see below) |
 | `configurations` | `string_list` | `["compile", "default", "runtime", "compileOnly", "compileClasspath"]` | List of configurations to generate a corresponding rule for. |
 | `experimental_disambiguate_maven_jar_workspace_names` | `bool` | `False` | See Note |
 
@@ -186,6 +193,25 @@ guice_compile()
 > workspace name includes the version specifier and becomes
 > `com_google_guava_guava_20_0`.
 
+Example use of the `repositories` attribute:
+
+
+```python
+# Load commons-imaging from adobe nexus repository.
+# Load everything else (junit) from maven central.
+maven_repository(
+    name = "maven",
+    repositories = {
+        "https://repo.adobe.com/nexus/content/repositories/public/": [
+            "org.apache.commons:commons-imaging",
+        ],
+    },
+    deps = [
+        "junit:junit:4.12",
+        "org.apache.commons:commons-imaging:1.0-R1534292",
+    ],
+)
+```
 
 # Credits
 

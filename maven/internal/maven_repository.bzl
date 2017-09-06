@@ -122,8 +122,12 @@ def _get_artifact_sha1(rtx, artifact):
     ws_name = artifact["ws_name"]
     output_file = ws_name + ".jar.sha1"
 
+    # Default url is maven central
+    url = _get_repository_url(rtx.attr.repositories, artifact) or "https://repo1.maven.org/maven2"
+
     # TODO: make this configurable.
-    path = "https://repo1.maven.org/maven2/{group}/{name}/{version}/{name}-{version}.jar.sha1".format(
+    path = "{url}/{group}/{name}/{version}/{name}-{version}.jar.sha1".format(
+        url = url,
         group = group,
         name = name,
         version = version,
@@ -249,8 +253,16 @@ def _format_java_library(name, artifacts):
     lines.append(")")
     return lines
 
+def _get_repository_url(rules, artifact):
+    for url in rules.keys():
+        rule_list = rules[url]
+        for rule in rule_list:
+            match = rule.split(":")
+            if len(match) == 2 and match[0] == artifact["group"] and match[1] == artifact["name"]:
+                return url
+    return None
 
-def _format_rules_file(rule_name, configs, all_artifacts):
+def _format_rules_file(rtx, rule_name, configs, all_artifacts):
     """Generate the rules.bzl file content.
     Args:
       rule_name: string - The name of the rule (rtx.name)
@@ -263,32 +275,38 @@ def _format_rules_file(rule_name, configs, all_artifacts):
     lines.append("load('@org_pubref_require_toolchain//:require.bzl', 'require')")
     lines.append("DEPS = {")
     for ws_name, artifact in all_artifacts.items():
-        lines += _format_maven_jar(ws_name, artifact)
+        lines += _format_maven_jar(rtx, ws_name, artifact)
     lines.append("}")
     for name, artifacts in configs.items():
-        lines += _format_config_def(rule_name + "_" + name, artifacts)
+        lines += _format_config_def(rtx, rule_name + "_" + name, artifacts)
     return "\n".join(lines)
 
 
-def _format_maven_jar(ws_name, artifact):
+def _format_maven_jar(rtx, ws_name, artifact):
     """Format a maven_jar rule (in require form).
     Args:
       name: string - the workspace name.
       artifacts: !dict<string,!Artifact>
     Returns: !list<string>
     """
+    # If we match a different repository, populate the URL variable
+    url = _get_repository_url(rtx.attr.repositories, artifact)
+
     lines = []
     lines.append("  '%s': {" % ws_name)
     lines.append("    'rule': 'maven_jar',")
     lines.append("    'artifact': '%s'," % artifact["coordinate"])
     lines.append("    'sha1': '%s'," % artifact["sha1"])
+    if url:
+        lines.append("    'repository': '%s'," % url)
     lines.append("  },")
     return lines
 
 
-def _format_config_def(name, artifacts):
+def _format_config_def(rtx, name, artifacts):
     """Format a macro function for a given configuration.
     Args:
+      rtx: repository_ctx - the context.
       name: string - the configuration name.
       artifacts: !dict<string,!Artifact>
     Returns: !list<string>
@@ -297,7 +315,12 @@ def _format_config_def(name, artifacts):
     lines.append("def %s(deps = DEPS, excludes = [], overrides = {}):" % name)
     lines.append("  require([")
     for ws_name, artifact in artifacts.items():
-        lines.append("    '%s'," % ws_name)
+        should_include = True
+        for target in rtx.attr.omit:
+            if target == ws_name:
+                should_include = False
+        if should_include:
+            lines.append("    '%s'," % ws_name)
     lines.append("  ], deps = deps, excludes = excludes, overrides = overrides)")
     return lines
 
@@ -438,10 +461,17 @@ def _format_build_gradle_resolution_strategy(force):
     return lines
 
 
-def _format_build_gradle_repositories():
+def _format_build_gradle_repositories(rtx):
     lines = []
     lines.append("repositories {")
     lines.append("    mavenCentral()")
+    for url in rtx.attr.repositories.keys():
+        if url == 'jcenter':
+            lines.append("    jcenter()")
+        else:
+            lines.append("    maven {")
+            lines.append('        url = "%s"' % url)
+            lines.append("    }")
     lines.append("}")
     return lines
 
@@ -449,7 +479,7 @@ def _format_build_gradle_repositories():
 def _format_build_gradle_file(rtx):
     lines = []
     lines += _format_build_gradle_plugins()
-    lines += _format_build_gradle_repositories()
+    lines += _format_build_gradle_repositories(rtx)
     lines += _format_build_gradle_resolution_strategy(rtx.attr.force)
 
     lines.append("dependencies {")
@@ -498,7 +528,7 @@ def _maven_repository_impl(rtx):
         print("\n# CLOSED-FORM RULE:\n# You can copy this to your WORKSPACE To suppress this message. \n%s\n" % "\n".join(lines))
 
     rtx.file("BUILD", _format_build_file(configs));
-    rtx.file("rules.bzl", _format_rules_file(rtx.name, configs, transitive_artifacts));
+    rtx.file("rules.bzl", _format_rules_file(rtx, rtx.name, configs, transitive_artifacts));
 
 
 maven_repository = repository_rule(
@@ -510,7 +540,11 @@ maven_repository = repository_rule(
         ),
         "exclude": attr.string_list_dict(
         ),
+        "omit": attr.string_list(
+        ),
         "force": attr.string_list(
+        ),
+        "repositories": attr.string_list_dict(
         ),
         "transitive_deps": attr.string_list(
         ),
@@ -520,7 +554,7 @@ maven_repository = repository_rule(
             cfg = "host",
         ),
         "_gradle_launcher_jar": attr.label(
-            default = Label("@gradle_distribution//:lib/gradle-launcher-3.2.1.jar"),
+            default = Label("@gradle_distribution//:lib/gradle-launcher-4.1.jar"),
             executable = True,
             cfg = "host",
         ),
