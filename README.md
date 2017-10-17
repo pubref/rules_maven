@@ -178,7 +178,7 @@ guice_compile()
 | `transitive_deps` | `string_list` | `[]` | List of maven artifacts in the transitive set reachable from `deps`.  The have the form `SHA1:NAME:GROUP:VERSION`, and are calculated by rules_maven via a generated `build.gradle` file. |
 | `exclude` | `string_list_dict` | `{}` | List of artifacts to exclude, in the form `{ 'NAME:GROUP': ['EXCLUDED_GROUP:EXCLUDED_NAME']` |
 | `force` | `string_list` | `[]` | List of artifacts to force, in the form `[ 'NAME:GROUP:VERSION']` |
-| `omit` | `string_list` | `[]` | List of artifacts to skip, in the form `[ 'NAME:GROUP:VERSION']` |
+| `omit` | `string_list` | `[]` | List of patterns to skip.  The pattern must either be a substring of the coordinate  `[ 'NAME:GROUP:VERSION']` or equal to the generated workspace name. |
 | `repositories` | `string_list_dict` | `{}` | A mapping of artifact-id pattern to url (see below) |
 | `configurations` | `string_list` | `["compile", "default", "runtime", "compileOnly", "compileClasspath"]` | List of configurations to generate a corresponding rule for. |
 | `experimental_disambiguate_maven_jar_workspace_names` | `bool` | `False` | See Note |

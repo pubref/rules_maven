@@ -222,7 +222,7 @@ def _parse_gradle_dependencies(rtx, transitive_artifacts, configurations, out, d
     return configs
 
 
-def _format_build_file(configs):
+def _format_build_file(rtx, configs):
     """Generate the BUILD file content.
     Args:
       configs: !dict<string,!dict<string,!Artifact>>
@@ -231,11 +231,11 @@ def _format_build_file(configs):
     lines = []
     lines.append("# AUTO_GENERATED, DO NOT EDIT")
     for name, artifacts in configs.items():
-        lines += _format_java_library(name, artifacts)
+        lines += _format_java_library(rtx, name, artifacts)
     return "\n".join(lines)
 
 
-def _format_java_library(name, artifacts):
+def _format_java_library(rtx, name, artifacts):
     """Format a java_library_rule.
     Args:
       name: string - the workspace name.
@@ -246,12 +246,36 @@ def _format_java_library(name, artifacts):
     lines.append("java_library(")
     lines.append("  name = '%s'," % name)
     lines.append("  exports = [")
-    for ws_name in artifacts.keys():
-        lines.append("    '@%s//jar'," % ws_name)
+    for ws_name, artifact in artifacts.items():
+        if not should_omit(rtx.attr.omit, artifact):
+            lines.append("    '@%s//jar'," % ws_name)
     lines.append("  ],")
     lines.append("  visibility = ['//visibility:public'],")
     lines.append(")")
     return lines
+
+
+def should_omit(names, artifact):
+    """Return true if the given artifact matches on of the patterns given in [names].
+
+    Foreach name in the given list, see if it is either (1) a
+    substring of the maven coordinate or (2) equal to the workspace
+    name.  For example, 'org.scala-lang' will return true for all
+    artifacts in that group, and 'org_scala_lang_scala_reflect' will
+    true true for that specific workspace.
+
+    Args:
+      name: string_list - a list of string patterns to test.
+      artifact: !Artifact - the artifact object to match
+    Returns: boolean
+    """
+    for name in names:
+        if name in artifact["coordinate"]:
+            return True
+        if name == artifact["ws_name"]:
+            return True
+    return False
+
 
 def _get_repository_url(rules, artifact):
     for url in rules.keys():
@@ -315,11 +339,7 @@ def _format_config_def(rtx, name, artifacts):
     lines.append("def %s(deps = DEPS, excludes = [], overrides = {}):" % name)
     lines.append("  require([")
     for ws_name, artifact in artifacts.items():
-        should_include = True
-        for target in rtx.attr.omit:
-            if target == ws_name:
-                should_include = False
-        if should_include:
+        if not should_omit(rtx.attr.omit, artifact):
             lines.append("    '%s'," % ws_name)
     lines.append("  ], deps = deps, excludes = excludes, overrides = overrides)")
     return lines
@@ -360,10 +380,19 @@ def _format_maven_repository(rtx, configs, all_artifacts):
             lines.append("        '%s'," % item)
         lines.append("    ],")
 
+    if rtx.attr.omit:
+        lines.append("    omit = [")
+        for item in rtx.attr.omit:
+            lines.append("        '%s'," % item)
+        lines.append("    ],")
+
     lines.append("    transitive_deps = [")
     for ws_name in ws_names:
         artifact = all_artifacts[ws_name]
-        lines.append("        '%s:%s'," % (artifact["sha1"], artifact["coordinate"]))
+        if should_omit(rtx.attr.omit, artifact):
+            lines.append("        'omit:%s'," % (artifact["coordinate"]))
+        else:
+            lines.append("        '%s:%s'," % (artifact["sha1"], artifact["coordinate"]))
     lines.append("    ],")
 
     if rtx.attr.experimental_disambiguate_maven_jar_workspace_names:
@@ -527,7 +556,7 @@ def _maven_repository_impl(rtx):
         lines = _format_maven_repository(rtx, configs, transitive_artifacts)
         print("\n# CLOSED-FORM RULE:\n# You can copy this to your WORKSPACE To suppress this message. \n%s\n" % "\n".join(lines))
 
-    rtx.file("BUILD", _format_build_file(configs));
+    rtx.file("BUILD", _format_build_file(rtx, configs));
     rtx.file("rules.bzl", _format_rules_file(rtx, rtx.name, configs, transitive_artifacts));
 
 

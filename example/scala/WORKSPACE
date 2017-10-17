@@ -1,0 +1,40 @@
+#
+# See https://github.com/pubref/rules_maven/issues/12
+# Scala example by @BlueDragonX
+#
+
+local_repository(
+    name = "org_pubref_rules_maven",
+    path = "../../",
+)
+
+load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories", "maven_repository")
+maven_repositories()
+
+scala_version = "2.11"
+
+maven_repository(
+    name = "genson",
+    # Omit can take two forms: either the specific name of the
+    # workspace, or some substring of the artifact maven coodinate.
+    # Either form should work to exclude the dependency.  NOTE: the
+    # transitive dependency is still printed in the transitive deps
+    # but has the token 'omit' rather than the sha1 value.
+    omit = [
+       # workspace name variety
+       'org_scala_lang_scala_library',
+       # artifact group:name variety
+       'org.scala-lang:scala-reflect',
+    ],
+    deps = [
+        "com.owlike:genson-scala_%s:1.4" % scala_version,
+    ],
+    transitive_deps = [
+        '8d6f7ee301653b6a221483663cf1c72a52967c8a:com.owlike:genson:1.4',
+        '6309a5ca43d54eb9cbfe1776909f40c1d4c23503:com.owlike:genson-scala_2.11:1.4',
+        'omit:org.scala-lang:scala-library:2.11.0',
+        'omit:org.scala-lang:scala-reflect:2.11.0',        
+    ],
+)
+load("@genson//:rules.bzl", "genson_compile")
+genson_compile()
