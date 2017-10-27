@@ -9,6 +9,7 @@ os:
 
 env:
   #- V=HEAD
+  - V=0.6.1
   - V=0.5.4
   - V=0.5.3
   - V=0.5.2
@@ -36,31 +37,23 @@ script:
   - |
     (cd example/grpc_java && bazel \
       --output_base=$HOME/.cache/bazel \
-      --batch \
-      --host_jvm_args=-Xmx500m \
-      --host_jvm_args=-Xms500m \
       build \
       --verbose_failures \
-      --test_output=errors \
-      --test_strategy=standalone \
-      --spawn_strategy=standalone \
-      --genrule_strategy=standalone \
-      --local_resources=400,2,1.0 \
       //src/main/java:main) \
       && \
       (cd example/robolectric && bazel \
       --output_base=$HOME/.cache/bazel \
-      --batch \
-      --host_jvm_args=-Xmx500m \
-      --host_jvm_args=-Xms500m \
       test \
       --verbose_failures \
       --test_output=errors \
-      --test_strategy=standalone \
-      --spawn_strategy=standalone \
-      --genrule_strategy=standalone \
-      --local_resources=400,2,1.0 \
-      //:import_test)
+      //:import_test) \
+      && \
+      (cd example/scala && bazel \
+      --output_base=$HOME/.cache/bazel \
+      test \
+      --verbose_failures \
+      --test_output=errors \
+      //:test_omit)
 
 notifications:
   email: false

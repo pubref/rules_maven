@@ -1,6 +1,6 @@
-load("//:local_rules_maven_repository.bzl", "local_rules_maven_repository")
-local_rules_maven_repository(
+local_repository(
     name = "org_pubref_rules_maven",
+    path = "../../",
 )
 
 load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories", "maven_repository")
