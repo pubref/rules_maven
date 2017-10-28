@@ -64,8 +64,9 @@ Given this initial repository rule defintion, `rules_maven` will:
 1. write a `@guice//:BUILD` file with the requisite `java_library`
    that bundle/export dependencies (one per configuration).
 
-1. print out a formatted `maven_repository` *"closed-form"* rule with
-   all the transitive dependencies explicitly named.
+1. print out a formatted `maven_repository` *"hermetic-form"* rule with
+   all the transitive dependencies and their sha1 values explicitly named
+   (can be disabled via the `hermetic = False` attribute)
 
 ### 2b. Copy and paste the closed-form back into your WORKSPACE.
 
@@ -175,10 +176,12 @@ guice_compile()
 | --- | --- | --- | --- |
 | `name` | `string` | `None` | The rule name. |
 | `deps` | `string_list` | `[]` | List of maven artifacts having the form `NAME:GROUP:VERSION` |
+| `gradle_build_file` | `label` | `None` | Use the given `build.gradle` file to name dependencies (rather than generating one based on `deps` |
 | `transitive_deps` | `string_list` | `[]` | List of maven artifacts in the transitive set reachable from `deps`.  The have the form `SHA1:NAME:GROUP:VERSION`, and are calculated by rules_maven via a generated `build.gradle` file. |
 | `exclude` | `string_list_dict` | `{}` | List of artifacts to exclude, in the form `{ 'NAME:GROUP': ['EXCLUDED_GROUP:EXCLUDED_NAME']` |
 | `force` | `string_list` | `[]` | List of artifacts to force, in the form `[ 'NAME:GROUP:VERSION']` |
 | `omit` | `string_list` | `[]` | List of patterns to skip.  The pattern must either be a substring of the coordinate  `[ 'NAME:GROUP:VERSION']` or equal to the generated workspace name. |
+| `hermetic` | `bool` | `True` | Regurgitate the rule with all transitive deps listed |
 | `repositories` | `string_list_dict` | `{}` | A mapping of artifact-id pattern to url (see below) |
 | `configurations` | `string_list` | `["compile", "default", "runtime", "compileOnly", "compileClasspath"]` | List of configurations to generate a corresponding rule for. |
 | `experimental_disambiguate_maven_jar_workspace_names` | `bool` | `False` | See Note |

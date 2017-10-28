@@ -1,0 +1,17 @@
+
+local_repository(
+    name = "org_pubref_rules_maven",
+    path = "../../",
+)
+
+load("@org_pubref_rules_maven//maven:rules.bzl", "maven_repositories", "maven_repository")
+maven_repositories()
+
+maven_repository(
+    name = 'artifact_repo',
+    gradle_build_file = "//:build.gradle",
+    hermetic = False,
+)
+
+load("@artifact_repo//:rules.bzl", "artifact_repo_runtime")
+artifact_repo_runtime()

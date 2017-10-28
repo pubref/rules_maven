@@ -409,6 +409,7 @@ def _execute(rtx, cmds):
       cmds: !list<string>
     Returns: struct value from the rtx.execute method.
     """
+    #print("Execute <%s>" % " ".join(cmds))
     result = rtx.execute(cmds)
     if result.return_code:
         fail(" ".join(cmds) + "failed: %s" %(result.stderr))
@@ -530,7 +531,10 @@ def _maven_repository_impl(rtx):
         rtx.attr.experimental_disambiguate_maven_jar_workspace_names)
 
     # Write a build.gradle file where our exection scope will be.
-    rtx.file("build.gradle", _format_build_gradle_file(rtx));
+    if rtx.attr.gradle_build_file:
+        rtx.symlink(Label(rtx.attr.gradle_build_file, relative_to_caller_repository = True), "build.gradle")
+    else:
+        rtx.file("build.gradle", _format_build_gradle_file(rtx));
 
     # Execute the gradle dependencies task
     result = _execute(rtx, [java, "-jar", launcher_jar, "dependencies"]);
@@ -552,9 +556,9 @@ def _maven_repository_impl(rtx):
         if artifact.get("new"):
             print_rule = True
 
-    if print_rule:
+    if print_rule and rtx.attr.hermetic:
         lines = _format_maven_repository(rtx, configs, transitive_artifacts)
-        print("\n# CLOSED-FORM RULE:\n# You can copy this to your WORKSPACE To suppress this message. \n%s\n" % "\n".join(lines))
+        print("\n# HERMETIC-FORM RULE:\n# You can copy this to your WORKSPACE To suppress this message. \n%s\n" % "\n".join(lines))
 
     rtx.file("BUILD", _format_build_file(rtx, configs));
     rtx.file("rules.bzl", _format_rules_file(rtx, rtx.name, configs, transitive_artifacts));
@@ -563,6 +567,11 @@ def _maven_repository_impl(rtx):
 maven_repository = repository_rule(
     implementation = _maven_repository_impl,
     attrs = {
+        "gradle_build_file": attr.string(
+            #allow_single_file = True,
+            #executable = True,
+            #cfg = "host",
+        ),
         "deps": attr.string_list(
         ),
         "experimental_disambiguate_maven_jar_workspace_names": attr.bool(
@@ -586,6 +595,9 @@ maven_repository = repository_rule(
             default = Label("@gradle_distribution//:lib/gradle-launcher-4.1.jar"),
             executable = True,
             cfg = "host",
+        ),
+        "hermetic": attr.bool(
+            default = True,
         ),
         "configurations": attr.string_list(
             default = [

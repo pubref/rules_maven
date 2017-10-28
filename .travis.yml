@@ -9,10 +9,9 @@ os:
 
 env:
   #- V=HEAD
+  - V=0.7.0
   - V=0.6.1
   - V=0.5.4
-  - V=0.5.3
-  - V=0.5.2
   - V=0.4.5
   - V=0.3.1
 
@@ -35,25 +34,10 @@ before_install:
 
 script:
   - |
-    (cd example/grpc_java && bazel \
-      --output_base=$HOME/.cache/bazel \
-      build \
-      --verbose_failures \
-      //src/main/java:main) \
-      && \
-      (cd example/robolectric && bazel \
-      --output_base=$HOME/.cache/bazel \
-      test \
-      --verbose_failures \
-      --test_output=errors \
-      //:import_test) \
-      && \
-      (cd example/scala && bazel \
-      --output_base=$HOME/.cache/bazel \
-      test \
-      --verbose_failures \
-      --test_output=errors \
-      //:test_omit)
+    (cd example/grpc_java   && bazel build //src/main/java:main) && \
+    (cd example/robolectric && bazel test  //:import_test) && \
+    (cd example/scala       && bazel test  //:test_omit) && \
+    (cd example/gradle      && bazel build //:main)
 
 notifications:
   email: false
