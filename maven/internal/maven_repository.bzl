@@ -592,7 +592,7 @@ maven_repository = repository_rule(
             cfg = "host",
         ),
         "_gradle_launcher_jar": attr.label(
-            default = Label("@gradle_distribution//:lib/gradle-launcher-4.1.jar"),
+            default = Label("@gradle_distribution//:lib/gradle-launcher-4.10.2.jar"),
             executable = True,
             cfg = "host",
         ),

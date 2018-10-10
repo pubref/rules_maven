@@ -1,7 +1,7 @@
 load("//maven:internal/require.bzl", "require")
 load("//maven:internal/require_toolchain.bzl", "require_toolchain")
 
-GRADLE_VERSION = "4.1"
+GRADLE_VERSION = "4.10.2"
 
 GRADLE_BUILD_FILE = """
 java_import(
