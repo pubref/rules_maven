@@ -360,11 +360,6 @@ def _format_maven_repository(rtx, configs, all_artifacts):
 
     lines.append("    name = '%s'," % rtx.name)
 
-    lines.append("    deps = [")
-    for coord in rtx.attr.deps:
-        lines.append("        '%s'," % coord)
-    lines.append("    ],")
-
     if rtx.attr.exclude:
         lines.append("    exclude = {")
         for k, v in rtx.attr.exclude.items():
@@ -393,6 +388,11 @@ def _format_maven_repository(rtx, configs, all_artifacts):
             lines.append("        'omit:%s'," % (artifact["coordinate"]))
         else:
             lines.append("        '%s:%s'," % (artifact["sha1"], artifact["coordinate"]))
+    lines.append("    ],")
+
+    lines.append("    deps = [")
+    for coord in rtx.attr.deps:
+        lines.append("        '%s'," % coord)
     lines.append("    ],")
 
     if rtx.attr.experimental_disambiguate_maven_jar_workspace_names:
@@ -558,7 +558,8 @@ def _maven_repository_impl(rtx):
 
     if print_rule and rtx.attr.hermetic:
         lines = _format_maven_repository(rtx, configs, transitive_artifacts)
-        print("\n# HERMETIC-FORM RULE:\n# You can copy this to your WORKSPACE To suppress this message. \n%s\n" % "\n".join(lines))
+        lines_str = "\n".join(lines).replace("'", "\"")
+        print("\n# HERMETIC-FORM RULE:\n# You can copy this to your WORKSPACE To suppress this message. \n%s\n" % lines_str)
 
     rtx.file("BUILD", _format_build_file(rtx, configs));
     rtx.file("rules.bzl", _format_rules_file(rtx, rtx.name, configs, transitive_artifacts));
