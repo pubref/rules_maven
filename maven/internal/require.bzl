@@ -1,3 +1,5 @@
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
 def _needs_install(name, dep, hkeys=["sha256", "sha1", "tag"], verbose=0):
 
     # Does it already exist?
@@ -40,7 +42,11 @@ def _install(deps, verbose):
         rule = d.pop("rule", None)
         if not rule:
             fail("Missing attribute 'rule': %s" % name)
-        if hasattr(native, rule):
+        if rule == "new_http_archive" or rule == "http_archive":
+            rule = http_archive
+            if verbose: print("Loading %s)" % name)
+            rule(**d)
+        elif hasattr(native, rule):
             rule = getattr(native, rule)
             if verbose: print("Loading %s)" % name)
             rule(**d)

@@ -19,7 +19,7 @@ DEPS = {
     "gradle_distribution": {
         "rule": "new_http_archive",
         "url": "https://services.gradle.org/distributions/gradle-%s-bin.zip" % GRADLE_VERSION,
-        "sha256": "",
+        "sha256": "b49c6da1b2cb67a0caf6c7480630b51c70a11ca2016ff2f555eaeda863143a29",
         "strip_prefix": "gradle-" + GRADLE_VERSION,
         "build_file_content": GRADLE_BUILD_FILE,
     },
