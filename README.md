@@ -219,9 +219,3 @@ maven_repository(
     ],
 )
 ```
-
-# Credits
-
-The anteater image is a reference to the O'Reilly book cover.  This image is
-actually "Peter", the University of California Irvine
-mascot. [**ZOT!**](http://studentaffairs.uci.edu/resources/right-facing-blk-outline.png)

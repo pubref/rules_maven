@@ -11,6 +11,7 @@ os:
   - osx
 
 env:
+  - BAZEL=0.24.1
   - BAZEL=0.21.0
 
 before_install:
