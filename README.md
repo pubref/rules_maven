@@ -1,14 +1,18 @@
 # `rules_maven` [![Build Status](https://travis-ci.org/pubref/rules_maven.svg?branch=master)](https://travis-ci.org/pubref/rules_maven)
 
 <table><tr>
-<td><img src="https://avatars1.githubusercontent.com/u/11684617?v=3&s=200" height="120"/></td>
-<td><img src="http://studentaffairs.uci.edu/resources/right-facing-blk-outline.png" height="120"/></td>
+<td><img src="https://github.com/bazelbuild.png" height="120"/></td>
+<td><img src="https://github.com/gradle.png" height="120"/></td>
 </tr><tr>
 <td>Rules</td>
 <td>Maven</td>
 </tr></table>
 
 [Bazel](https://bazel.build) rules for working with transitive maven dependencies.
+
+> The word 'maven' here refers to 'maven artifacts', not the tool 'mvn'.  This
+> repo utilizes gradle to assist with transitive dependency management, hence
+> the logo reference. 
 
 ## Rules
 
