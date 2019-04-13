@@ -556,7 +556,7 @@ def _maven_repository_impl(rtx):
         if artifact.get("new"):
             print_rule = True
 
-    if print_rule and rtx.attr.hermetic:
+    if print_rule and rtx.attr.print_hermetic:
         lines = _format_maven_repository(rtx, configs, transitive_artifacts)
         lines_str = "\n".join(lines).replace("'", "\"")
         print("\n# HERMETIC-FORM RULE:\n# You can copy this to your WORKSPACE To suppress this message. \n%s\n" % lines_str)
@@ -569,23 +569,28 @@ maven_repository = repository_rule(
     implementation = _maven_repository_impl,
     attrs = {
         "gradle_build_file": attr.string(
-            #allow_single_file = True,
-            #executable = True,
-            #cfg = "host",
+            doc = "The name of a build.gradle file to use"
         ),
         "deps": attr.string_list(
+            doc = "List of artifact dependencies"
         ),
         "experimental_disambiguate_maven_jar_workspace_names": attr.bool(
+            doc = "Include the version to generated workspace name"
         ),
         "exclude": attr.string_list_dict(
+            doc = "List of artifacts to exclude"
         ),
         "omit": attr.string_list(
+            doc = "List of artifacts to omit"
         ),
         "force": attr.string_list(
+            doc = "force an artifact to a particular version"
         ),
         "repositories": attr.string_list_dict(
+            doc = "List of non-central maven repos to pull from"
         ),
         "transitive_deps": attr.string_list(
+            doc = "List of artifacts, with version sha1's included"
         ),
         "_java": attr.label(
             default = Label("//external:java"),
@@ -597,8 +602,9 @@ maven_repository = repository_rule(
             executable = True,
             cfg = "host",
         ),
-        "hermetic": attr.bool(
+        "print_hermetic": attr.bool(
             default = True,
+            doc = "If true, print the 'hermetic form' of the rule"
         ),
         "configurations": attr.string_list(
             default = [
@@ -607,6 +613,7 @@ maven_repository = repository_rule(
                 "runtime",
                 "testCompile",
             ],
+            doc = "Name of gradle configurations to generate"
         ),
     }
 )

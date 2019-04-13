@@ -10,7 +10,7 @@ maven_repositories()
 maven_repository(
     name = 'artifact_repo',
     gradle_build_file = "//:build.gradle",
-    hermetic = False,
+    print_hermetic = False,
 )
 
 load("@artifact_repo//:rules.bzl", "artifact_repo_runtime")
